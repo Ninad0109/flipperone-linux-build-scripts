@@ -53,6 +53,23 @@ jobs:
             EOF
 
             sudo apt-get update -y
+      - name: Debug apt sources
+        run: |
+          echo "=== /etc/apt/sources.list ==="
+          cat /etc/apt/sources.list || echo "(empty or missing)"
+          echo ""
+          echo "=== /etc/apt/sources.list.d/ ==="
+          ls -la /etc/apt/sources.list.d/
+          echo ""
+          echo "=== contents of each .list and .sources file ==="
+          for f in /etc/apt/sources.list.d/*; do
+            echo "--- $f ---"
+            cat "$f"
+            echo ""
+          done
+          echo "=== dpkg architectures ==="
+          dpkg --print-architecture
+          dpkg --print-foreign-architectures
       # Install system prerequisites that the Dockerfile also installs
       - name: Install build prerequisites
         run: |
