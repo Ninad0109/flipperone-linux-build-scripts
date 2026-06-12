@@ -28,6 +28,7 @@ jobs:
           # Verify — this must print a 'c' device line or the build will fall back to QEMU
           ls -la /dev/kvm
           [ -c /dev/kvm ] && [ -w /dev/kvm ] && echo "KVM: OK" || echo "KVM: NOT available (will use QEMU fallback)"
+     
       - name: Fix kernel file permissions for fakemachine/debos
         run: |
           # fakemachine reads the host kernel to boot its internal QEMU VM.
@@ -39,6 +40,7 @@ jobs:
           # Verify
           ls -la /boot/vmlinuz-* /boot/initrd.img-* 2>/dev/null \
             | awk '{print $1, $NF}'
+     
       - name: Configure apt sources (amd64 = mirrors, arm64 = ports only)
         run: |
           sudo dpkg --add-architecture arm64
@@ -89,6 +91,7 @@ jobs:
           cat /etc/apt/sources.list.d/ubuntu.sources
         
           sudo apt-get update -y
+     
       - name: Debug apt sources
         run: |
           echo "=== /etc/apt/sources.list ==="
@@ -106,26 +109,49 @@ jobs:
           echo "=== dpkg architectures ==="
           dpkg --print-architecture
           dpkg --print-foreign-architectures
+     
       # Install system prerequisites that the Dockerfile also installs
+     
       - name: Install build prerequisites
         run: |
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update -y
           sudo apt-get install -y \
             git build-essential crossbuild-essential-arm64 \
             bison flex parted fdisk \
             python3-dev python3-libfdt python3-setuptools \
             swig libssl-dev gnutls-dev python3-pyelftools \
-            qemu-user-binfmt \
+            qemu-user-static \
+            binfmt-support \
             bc imagemagick libdw-dev libelf-dev debhelper \
             device-tree-compiler libssl-dev:arm64 rsync wget \
             mmdebstrap systemd-container systemd-resolved \
             pipx pigz cargo golang \
             libglib2.0-dev libostree-dev fakemachine
-
-      # Install debos from source (same as Dockerfile does).
-      # Key: install to /usr/local/bin so it's in sudo's secure_path AND in plain PATH.
-      # This avoids the entire sudo/PATH conflict.
+      
+            # Install debos from source (same as Dockerfile does).
+            # Key: install to /usr/local/bin so it's in sudo's secure_path AND in plain PATH.
+            # This avoids the entire sudo/PATH conflict.
+      - name: Register and verify qemu-user-static binfmt entries
+        run: |
+          # Ensure binfmt_misc is mounted (it may not be on all runner kernels)
+          sudo mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc \
+            2>/dev/null || true
+      
+          # Register all qemu-user-static interpreters
+          sudo update-binfmts --enable
+      
+          # Confirm arm64 (aarch64) is registered
+          if [ -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
+            echo "binfmt qemu-aarch64: registered"
+            cat /proc/sys/fs/binfmt_misc/qemu-aarch64
+          else
+            echo "ERROR: qemu-aarch64 binfmt not registered"
+            ls /proc/sys/fs/binfmt_misc/
+            exit 1
+          fi
+      
+          # Confirm the static binary exists and is actually static
+          ls -la $(which qemu-aarch64-static)
+          file $(which qemu-aarch64-static)
       - name: Install debos
         run: |
           export GOPATH="$HOME/go"
