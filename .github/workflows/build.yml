@@ -32,34 +32,34 @@ jobs:
       - name: Configure apt sources (amd64 = mirrors, arm64 = ports only)
         run: |
           sudo dpkg --add-architecture arm64
-      
+        
           # ubuntu.sources uses `mirror+file:` with no Architectures field,
           # so apt tries security.ubuntu.com for arm64 and gets 404s.
           # Inject Architectures: amd64 into BOTH stanzas in ubuntu.sources.
           # The file has two Types: deb blocks (main + security) — we need
           # to add the Architectures line to each one.
           sudo python3 - <<'PYEOF'
-            import re
-            
-            path = "/etc/apt/sources.list.d/ubuntu.sources"
-            with open(path, "r") as f:
-                content = f.read()
-            
-            # Each stanza starts with "Types: deb".
-            # Insert "Architectures: amd64" after the "Types: deb" line in every stanza.
-            patched = re.sub(
-                r"(Types: deb\n)",
-                r"\1Architectures: amd64\n",
-                content
-            )
-            
-            with open(path, "w") as f:
-                f.write(patched)
-            
-            print("Patched ubuntu.sources:")
-            print(patched)
-            PYEOF
-      
+          import re
+          
+          path = "/etc/apt/sources.list.d/ubuntu.sources"
+          with open(path, "r") as f:
+              content = f.read()
+          
+          # Each stanza starts with "Types: deb".
+          # Insert "Architectures: amd64" after the "Types: deb" line in every stanza.
+          patched = re.sub(
+              r"(Types: deb\n)",
+              r"\1Architectures: amd64\n",
+              content
+          )
+          
+          with open(path, "w") as f:
+              f.write(patched)
+          
+          print("Patched ubuntu.sources:")
+          print(patched)
+          PYEOF
+        
           # Write the arm64 ports list (idempotent — overwrites if already exists)
           cat <<'EOF' | sudo tee /etc/apt/sources.list.d/arm64-ports.list
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble           main restricted universe multiverse
@@ -67,17 +67,17 @@ jobs:
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security  main restricted universe multiverse
           EOF
-      
+        
           # Also fix microsoft-prod.list — it lists arm64 but microsoft's repo
           # doesn't serve arm64 packages for all components, which can cause
           # warnings or errors. Restrict it to amd64 only.
           sudo sed -i 's/\[arch=amd64,arm64,armhf/[arch=amd64/' \
             /etc/apt/sources.list.d/microsoft-prod.list
-      
+        
           # Sanity check
           echo "=== ubuntu.sources after patch ==="
           cat /etc/apt/sources.list.d/ubuntu.sources
-      
+        
           sudo apt-get update -y
       - name: Debug apt sources
         run: |
