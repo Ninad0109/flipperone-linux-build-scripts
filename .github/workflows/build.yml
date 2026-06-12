@@ -28,7 +28,17 @@ jobs:
           # Verify — this must print a 'c' device line or the build will fall back to QEMU
           ls -la /dev/kvm
           [ -c /dev/kvm ] && [ -w /dev/kvm ] && echo "KVM: OK" || echo "KVM: NOT available (will use QEMU fallback)"
-
+      - name: Fix kernel file permissions for fakemachine/debos
+        run: |
+          # fakemachine reads the host kernel to boot its internal QEMU VM.
+          # Ubuntu packages vmlinuz as 0600 (root-only) by default.
+          # Make all kernels and initrds in /boot world-readable.
+          sudo chmod 0644 /boot/vmlinuz-* 2>/dev/null || true
+          sudo chmod 0644 /boot/initrd.img-* 2>/dev/null || true
+      
+          # Verify
+          ls -la /boot/vmlinuz-* /boot/initrd.img-* 2>/dev/null \
+            | awk '{print $1, $NF}'
       - name: Configure apt sources (amd64 = mirrors, arm64 = ports only)
         run: |
           sudo dpkg --add-architecture arm64
