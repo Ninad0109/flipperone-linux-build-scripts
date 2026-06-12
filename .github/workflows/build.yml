@@ -1,0 +1,26 @@
+name: Build Flipper One OS
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y golang-go libostree-dev qemu-user-static qemu-system-arm qemu-kvm systemd-container debootstrap
+          go install github.com/go-debos/debos/cmd/debos@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Build The Image
+        run: |
+          mkdir -p out
+          ./build-ospack.sh
+
+      - name: Save The Finished File
+        uses: actions/upload-artifact@v4
+        with:
+          name: flipper-one-image
+          path: out/
