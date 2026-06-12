@@ -1,24 +1,21 @@
 name: Build Flipper One OS
 on: [workflow_dispatch]
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Using the official debos container you found, which already has KVM and tools configured
+    container:
+      image: ghcr.io/go-debos/debos:main
+      options: --device=/dev/kvm --privileged
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Install Tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y debos golang-go libostree-dev qemu-user-static qemu-system-arm qemu-kvm systemd-container debootstrap
-          go install github.com/go-debos/debos/cmd/debos@latest
-          sudo cp $HOME/go/bin/debos /usr/local/bin/
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Build The Image
         run: |
           mkdir -p out
+          # Because we are inside the official container, debos is already installed natively!
           ./build-ospack.sh
 
       - name: Save The Finished File
