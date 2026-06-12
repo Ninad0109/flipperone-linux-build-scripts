@@ -4,19 +4,24 @@ on: [workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Using the official debos container you found, which already has KVM and tools configured
-    container:
-      image: ghcr.io/go-debos/debos:main
-      options: --device=/dev/kvm --privileged
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build The Image
+      - name: Create output directory
+        run: mkdir -p out
+
+      - name: Run debos via Official Docker Container
         run: |
-          mkdir -p out
-          # Because we are inside the official container, debos is already installed natively!
-          ./build-ospack.sh
+          docker run --rm \
+            --privileged \
+            --device /dev/kvm \
+            --workdir /recipes \
+            --mount "type=bind,source=$(pwd),destination=/recipes" \
+            --security-opt label=disable \
+            --entrypoint /bin/bash \
+            ghcr.io/go-debos/debos:main \
+            -c "./build-ospack.sh"
 
       - name: Save The Finished File
         uses: actions/upload-artifact@v4
