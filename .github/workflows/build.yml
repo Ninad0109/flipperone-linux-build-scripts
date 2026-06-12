@@ -147,6 +147,27 @@ jobs:
           pipx install --global \
             git+https://github.com/flipperdevices/bmaptool.git@flipper-devel
 
+      - name: Install Debian archive keyring for mmdebstrap
+        run: |
+          # mmdebstrap runs inside fakemachine and bootstraps a Debian trixie chroot.
+          # The fakemachine VM inherits /usr/share/keyrings from the host.
+          # Without debian-archive-keyring on the host, apt inside the VM cannot
+          # verify deb.debian.org or security.debian.org and refuses to proceed.
+      
+          # The package lives in Ubuntu's universe component (already enabled).
+          sudo apt-get install -y debian-archive-keyring
+      
+          # Verify the keys are now present where mmdebstrap/apt will look for them
+          ls -la /usr/share/keyrings/debian-archive-keyring.gpg
+          ls -la /usr/share/keyrings/debian-archive-removed-keys.gpg
+      
+          # Cross-check that the specific missing key IDs are covered
+          gpg --no-default-keyring \
+              --keyring /usr/share/keyrings/debian-archive-keyring.gpg \
+              --list-keys 2>/dev/null \
+            | grep -E "6ED0E7B82643E131|78DBA3BC47EF2265|762F67A0B2C39DE4|BDE6D2B9216EC7A8|8E9F831205B4BA95" \
+            && echo "All required Debian keys present" \
+            || echo "WARNING: some keys still missing"
       # THE KEY STEP: run build-ospack.sh directly on the runner (not inside a container).
       # Because /.dockerenv does NOT exist on the runner and /dev/kvm DOES exist,
       # the script will take Branch 1: `debos -c $(nproc) -m 6Gb` — the fast KVM path.
