@@ -130,26 +130,25 @@ jobs:
             # Install debos from source (same as Dockerfile does).
             # Key: install to /usr/local/bin so it's in sudo's secure_path AND in plain PATH.
             # This avoids the entire sudo/PATH conflict.
-      - name: Register and verify qemu-user-static binfmt entries
+      - name: Register qemu-user-static binfmt entries via docker
         run: |
-          # Ensure binfmt_misc is mounted (it may not be on all runner kernels)
-          sudo mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc \
-            2>/dev/null || true
+          # binfmt-support's update-binfmts doesn't work reliably on GHA runners
+          # because the binfmt-support service isn't running.
+          # tonistiigi/binfmt writes directly to /proc/sys/fs/binfmt_misc and is
+          # the standard solution used by docker buildx and cross-platform CI.
+          docker run --privileged --rm tonistiigi/binfmt --install arm64
       
-          # Register all qemu-user-static interpreters
-          sudo update-binfmts --enable
-      
-          # Confirm arm64 (aarch64) is registered
+          # Verify aarch64 is now registered
           if [ -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
-            echo "binfmt qemu-aarch64: registered"
+            echo "binfmt qemu-aarch64: OK"
             cat /proc/sys/fs/binfmt_misc/qemu-aarch64
           else
-            echo "ERROR: qemu-aarch64 binfmt not registered"
+            echo "ERROR: still not registered after docker binfmt install"
             ls /proc/sys/fs/binfmt_misc/
             exit 1
           fi
       
-          # Confirm the static binary exists and is actually static
+          # Confirm the static binary is present (installed by qemu-user-static)
           ls -la $(which qemu-aarch64-static)
           file $(which qemu-aarch64-static)
       - name: Install debos
