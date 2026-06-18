@@ -1,0 +1,105 @@
+name: Build Flipper One OS Pack
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  build-ospack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+     
+      - name: Fix kernel file permissions for fakemachine
+        run: |
+          sudo chmod 0644 /boot/vmlinuz-* 2>/dev/null || true
+          sudo chmod 0644 /boot/initrd.img-* 2>/dev/null || true
+     
+      - name: Configure apt sources for multiarch (arm64)
+        run: |
+          sudo dpkg --add-architecture arm64
+        
+          sudo python3 - <<'PYEOF'
+          import re
+          path = "/etc/apt/sources.list.d/ubuntu.sources"
+          with open(path, "r") as f:
+              content = f.read()
+          patched = re.sub(r"(Types: deb\n)", r"\1Architectures: amd64\n", content)
+          with open(path, "w") as f:
+              f.write(patched)
+          PYEOF
+        
+          cat <<'EOF' | sudo tee /etc/apt/sources.list.d/arm64-ports.list
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble           main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates   main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security  main restricted universe multiverse
+          EOF
+        
+          sudo sed -i 's/\[arch=amd64,arm64,armhf/[arch=amd64/' /etc/apt/sources.list.d/microsoft-prod.list
+          sudo apt-get update -y
+     
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get install -y \
+            git build-essential crossbuild-essential-arm64 \
+            bison flex parted fdisk \
+            python3-dev python3-libfdt python3-setuptools \
+            swig libssl-dev gnutls-dev python3-pyelftools \
+            qemu-user-static \
+            binfmt-support \
+            bc imagemagick libdw-dev libelf-dev debhelper \
+            device-tree-compiler libssl-dev:arm64 rsync wget \
+            mmdebstrap systemd-container systemd-resolved \
+            pipx pigz cargo golang \
+            libglib2.0-dev libostree-dev fakemachine
+      
+      - name: Register qemu-user-static binfmt entries
+        run: |
+          docker run --privileged --rm tonistiigi/binfmt --install arm64
+
+      - name: Install debos
+        run: |
+          export GOPATH="$HOME/go"
+          go install -v github.com/go-debos/debos/cmd/debos@latest
+          sudo install -m 755 "$HOME/go/bin/debos" /usr/local/bin/debos
+
+      - name: Install zeekstd
+        run: |
+          cargo install --git https://github.com/rorosen/zeekstd.git zeekstd_cli
+          sudo install -m 755 ~/.cargo/bin/zeekstd /usr/local/bin/zeekstd
+
+      - name: Install bmaptool
+        run: |
+          pipx install --global \
+            git+https://github.com/flipperdevices/bmaptool.git@flipper-devel
+
+      - name: Install Debian archive keyring for mmdebstrap
+        run: |
+          sudo apt-get install -y debian-archive-keyring
+      
+      - name: Build OS pack
+        run: |
+          mkdir -p out
+          IMG_OUT=out ./build-ospack.sh
+        timeout-minutes: 120
+
+      - name: Upload OS pack artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: flipper-ospack-${{ github.sha }}
+          path: out/
+          retention-days: 7
