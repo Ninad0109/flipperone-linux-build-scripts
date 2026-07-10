@@ -19,22 +19,20 @@ actions:
     include:
       - acl
       - adduser
-      - avahi-daemon
       - alsa-ucm-conf
       - alsa-utils
       - apt-transport-https
+      - avahi-daemon
       - bash-completion
       - bc
-      - bluedevil
-      - blueman
       - bluez
       - bluez-firmware
       - bluez-meshd
-      - breeze-gtk-theme
       - bsdextrautils
       - bsdmainutils
+      - btrfs-compsize
+      - btrfs-progs
       - build-essential
-      - cage
       - ca-certificates
       - cec-utils
       - chromium
@@ -43,8 +41,7 @@ actions:
       - dmidecode
       - dnsmasq-base
       - drm-info
-      - gstreamer1.0-plugins-bad
-      - gstreamer1.0-tools
+      - duperemove
       - e2fsprogs
       - edid-decode
       - evtest
@@ -55,6 +52,9 @@ actions:
       - git
       - glmark2-wayland
       - gpiod
+      - gstreamer1.0-plugins-bad
+      - gstreamer1.0-tools
+      - htop
       - i2c-tools
       - inetutils-telnet
       - initramfs-tools
@@ -64,25 +64,17 @@ actions:
       - iputils-ping
       - iw
       - iwd
-      - kde-config-gtk-style
-      - kde-config-screenlocker
-      - kde-spectacle
-      - kde-standard
       - kmscube
-      - kodi
-      - kodi-eventclients-kodi-send
-      - konsole
-      - kscreen
       - less
       - libcanberra-pulse
+      - libdrm-tests
       - libfreeaptx0
+      - liblc3-1
       - libldacbt-abr2
       - libldacbt-enc2
-      - liblc3-1
-      - libsbc1
       - libopus0
+      - libsbc1
       - libspa-0.2-bluetooth
-      - libdrm-tests
       - libtypec-utils
       - libubootenv-tool
       - libusb-1.0-0-dev
@@ -94,6 +86,7 @@ actions:
       - lshw
       - lsof
       - make
+      - mc
       - mesa-utils
       - modemmanager
       - nano
@@ -104,10 +97,8 @@ actions:
       - p7zip
       - pciutils
       - pipewire-alsa
-      - plasma-nm
-      - plasma-systemmonitor
       - powercap-utils
-      - powerdevil
+      - pv
       - python3-evdev
       - python3-pandas
       - python3-plotly
@@ -123,12 +114,11 @@ actions:
       - systemd-resolved
       - systemd-sysv
       - systemd-timesyncd
-      - systemsettings
       - tcpdump
       - traceroute
-      - u-boot-menu
       - udev
       - unzip
+      - upower
       - usb-modeswitch
       - usbutils
       - util-linux-extra
@@ -209,9 +199,9 @@ actions:
     destination: /usr/local
 
   - action: overlay
-    description: Overlay our usr/sbin files
-    source: overlays/usr/sbin
-    destination: /usr/sbin
+    description: Overlay our usr/lib helpers
+    source: overlays/usr/lib
+    destination: /usr/lib
 
   - action: overlay
     description: Overlay our usr/share files
@@ -230,11 +220,6 @@ actions:
     chroot: true
     command: |
       echo 'BUILD_GIT="{{ $gitinfo }}"' >> /etc/os-release
-
-  - action: run
-    description: Make u-boot-update script executable
-    chroot: true
-    command: chmod +x /usr/sbin/u-boot-update
 
   - action: run
     description: Remove /etc/machine-id and default /etc/motd
@@ -266,8 +251,6 @@ actions:
       - libavformat-extra
       - lpac
       - mesa-teflon-delegate
-      - sddm
-      - sddm-theme-breeze
 
   - action: overlay
     description: Overlay Kodi Chromium kiosk launcher
@@ -280,5 +263,6 @@ actions:
     command: chown -R user:user /home/user
 
   - action: pack
-    description: Save a tarball of the root filesystem
-    file: debian-ospack.tar.gz
+    description: Save the ospack archive
+    file: debian-ospack.tar.zst
+    compression: zstd

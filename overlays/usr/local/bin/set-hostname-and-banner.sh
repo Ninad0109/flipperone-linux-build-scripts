@@ -25,11 +25,15 @@ new_hostname="${device}-${serial_prefix}-${BUILD_ID}"
 hostnamectl set-hostname "${new_hostname}"
 
 # Get build info
-build_id=${BUILD_ID:-0}
+build_id=${BUILD_ID:-unknown}
 build_git=${BUILD_GIT:-unknown}
-build_date=$(date -d "@$build_id" "+%Y-%m-%d %H:%M:%S %Z" 2>/dev/null || echo "$build_id")
 
 total_mem=$(awk '/MemTotal/ {printf "%.1f GB", $2/1024/1024}' /proc/meminfo)
+
+# Get currently booted profile = the btrfs subvolume mounted as root (@Desktop, @Router, @TV-Media-Box, @Minimal).
+profile=$(findmnt -nro FSROOT / 2>/dev/null)
+profile=${profile#/}
+[ -n "$profile" ] && [ "$profile" != "/" ] || profile=unknown
 
 # Generate SSH welcome banner
 cat <<EOF >/etc/ssh/welcome_banner
@@ -38,7 +42,8 @@ Git:          $build_git
 Board:        $board
 CPU Serial:   $serial
 Memory:       $total_mem
-Build Date:   $build_date
+Build ID:     $build_id
+Profile:      $profile
 Default credentials: user / user
 =============================================================
 EOF

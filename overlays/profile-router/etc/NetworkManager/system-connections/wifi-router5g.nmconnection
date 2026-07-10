@@ -1,0 +1,19 @@
+[connection]
+id=Router Wi-Fi 5 GHz
+type=wifi
+autoconnect=false
+master=br-lan
+slave-type=bridge
+
+[wifi]
+band=a
+channel=36
+channel-width=80
+mode=ap
+ssid=FlipperOne_5GHz_WIFISSIDSERIAL
+
+[wifi-security]
+key-mgmt=wpa-psk
+proto=rsn
+pairwise=ccmp
+psk=flipperone

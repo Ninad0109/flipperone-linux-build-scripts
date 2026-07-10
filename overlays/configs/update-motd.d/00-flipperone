@@ -10,11 +10,15 @@ serial=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number 2>/dev/null ||
 . /etc/os-release
 
 # Get build info
-build_id=${BUILD_ID:-0}
+build_id=${BUILD_ID:-unknown}
 build_git=${BUILD_GIT:-unknown}
-build_date=$(date -d "@$build_id" "+%Y-%m-%d %H:%M:%S %Z" 2>/dev/null || echo "$build_id")
 
 total_mem=$(awk '/MemTotal/ {printf "%.1f GB", $2/1024/1024}' /proc/meminfo)
+
+# Get currently booted profile = the btrfs subvolume mounted as root (@Desktop, @Router, @TV-Media-Box, @Minimal).
+profile=$(findmnt -nro FSROOT / 2>/dev/null)
+profile=${profile#/}
+[ -n "$profile" ] && [ "$profile" != "/" ] || profile=unknown
 
 # Generate MOTD
 cat <<EOF
@@ -25,7 +29,8 @@ cat <<EOF
    Board:        $board
    CPU Serial:   $serial
    Memory:       $total_mem
-   Build Date:   $build_date
+   Build ID:     $build_id
+   Profile:      $profile
 
 Memory Status:
 $(free -hv)
